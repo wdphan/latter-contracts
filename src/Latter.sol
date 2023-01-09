@@ -6,11 +6,11 @@ import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Counters.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 
-// List and Sell NFTs
-// include marketplace fee
-// include installment amount
-// include payment amount
-// include time component and expiry
+/// @title Latter
+/// @author William Phan
+/// @notice Pay-in-four model. 4 payments made every 2 weeks for an NFT
+/// @dev All function calls are currently implemented without side effects
+/// @custom:experimental This is an experimental contract.
 
 // Set the contract to be owned
 contract Latter {
