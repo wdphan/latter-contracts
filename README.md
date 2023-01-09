@@ -1,27 +1,3 @@
-# foundry-template • [![CI](https://github.com/transmissions11/foundry-template/actions/workflows/tests.yml/badge.svg)](https://github.com/transmissions11/foundry-template/actions/workflows/tests.yml)
+## Forking
 
-Streamlined template for getting started with Foundry and Solmate.
-
-## Contributing
-
-You will need a copy of [Foundry](https://github.com/foundry-rs/foundry) installed before proceeding. See the [installation guide](https://github.com/foundry-rs/foundry#installation) for details.
-
-### Setup
-
-```sh
-git clone https://github.com/transmissions11/foundry-template.git
-cd foundry-template
-forge install
-```
-
-### Run Tests
-
-```sh
-forge test
-```
-
-### Update Gas Snapshots
-
-```sh
-forge snapshot
-```
+This project is licenced with the '[Do What The F\*ck You Want To Public License (wtfpl)](https://choosealicense.com/licenses/wtfpl/)' licence, and the permissions/limitations are rather self-explanatory. Attribution isn't required, but I'd appreciate it.
