@@ -2,7 +2,7 @@
 
 > Buy Now, Pay Later Model
 
-A mini-implementation of Affirm. Pay-in-four model is implemented, where 4 payments are made every 2 weeks for an NFT. Mostly used for high ticket items.
+A mini-implementation of Affirm. Pay-in-four model is implemented, where 4 payments are made every 2 weeks for an NFT. Mostly used for high ticket items - NFTs in this case.
 
 [Contract Source](src)
 
