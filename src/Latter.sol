@@ -13,7 +13,7 @@ import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 /// @custom:experimental This is an experimental contract.
 
 // Set the contract to be owned
-contract Latter {
+contract Latter is ILatter{
     using Timers for Timers.Timestamp;
     using SafeMath for uint256;
     using Counters for Counters.Counter;
@@ -28,12 +28,6 @@ contract Latter {
     // counts number of installments paid for listing
     Counters.Counter private listingInstallmentCounter;
 
-    enum State {
-        ForSale,
-        PaymentActive,
-        NotForSale
-    }
-
     // The ERC721 token contract
     IERC721 public nftContract;
 
@@ -43,7 +37,7 @@ contract Latter {
     // The address of the marketplace contract
     address public marketplaceContract;
 
-    // The address of the marketplace contract
+    // The address of the marketplace contract owner
     address public marketplaceOwner;
 
     // The due date for each payment
@@ -54,81 +48,6 @@ contract Latter {
 
     // The marketplace transaction fee (0.5%)
     uint256 public transactionFee = uint256(0.005 * 10**18);
-
-    struct Listing {
-        uint256 listingId;
-        uint256 tokenId;
-        address nftAddress;
-        address payable seller;
-        address payable buyer;
-        uint256 listingPrice;
-        uint256 installmentPrice;
-        uint256 installmentNumber;
-        // time left until next installment due
-        uint256 timeLeft;
-        bool isExpired;
-        State state;
-    }
-
-    event ListingCreated(
-        uint256 indexed listingId,
-        uint256 indexed tokenId,
-        address indexed nftAddress,
-        address payable seller,
-        address payable buyer,
-        uint256 listingPrice,
-        uint256 installmentPrice,
-        uint256 installmentNumber,
-        // time left until next installment due
-        uint256 timeLeft,
-        bool isExpired,
-        State state
-    );
-
-    event ListingInstallmentPaid(
-        uint256 indexed listingId,
-        uint256 indexed tokenId,
-        address indexed nftAddress,
-        address payable seller,
-        address payable buyer,
-        uint256 listingPrice,
-        uint256 installmentPrice,
-        uint256 installmentNumber,
-        // time left until next installment due
-        uint256 timeLeft,
-        bool isExpired,
-        State state
-    );
-
-    event PaidOff(
-        uint256 indexed listingId,
-        uint256 indexed tokenId,
-        address indexed nftAddress,
-        address payable seller,
-        address payable buyer,
-        uint256 listingPrice,
-        uint256 installmentPrice,
-        uint256 installmentNumber,
-        // time left until next installment due
-        uint256 timeLeft,
-        bool isExpired,
-        State state
-    );
-
-    event ListingDeleted(
-        uint256 indexed listingId,
-        uint256 indexed tokenId,
-        address indexed nftAddress,
-        address payable seller,
-        address payable buyer,
-        uint256 listingPrice,
-        uint256 installmentPrice,
-        uint256 installmentNumber,
-        // time left until next installment due
-        uint256 timeLeft,
-        bool isExpired,
-        State state
-    );
 
     mapping(uint256 => Listing) private listings;
 
@@ -183,14 +102,14 @@ contract Latter {
         Listing memory newListing = Listing(
             listingId,
             tokenId,
+            installmentCounter,
+            false,
             nftAddress,
             payable(msg.sender),
             payable(address(0)),
             listingPrice,
             installmentPrice,
-            installmentCounter,
             block.timestamp,
-            false,
             // changes the state to for sale
             State.ForSale
         );
@@ -199,14 +118,14 @@ contract Latter {
         emit ListingCreated(
             listingId,
             tokenId,
+            installmentCounter,
+            false,
             nftAddress,
             payable(msg.sender),
             payable(address(0)),
             listingPrice,
             installmentPrice,
-            installmentCounter,
             block.timestamp,
-            false,
             State.ForSale
         );
     }
@@ -246,15 +165,15 @@ contract Latter {
         emit ListingDeleted(
             listingId,
             listing.tokenId,
+            listing.installmentNumber,
+            // time set to expired
+            true,
             listing.nftAddress,
             payable(address(0)),
             payable(address(0)),
             listing.listingPrice,
             listing.installmentPrice,
-            listing.installmentNumber,
             block.timestamp,
-            // set time to expired
-            true,
             State.NotForSale
         );
     }
@@ -301,19 +220,6 @@ contract Latter {
         IERC721(listing.nftAddress).approve(address(0), listingId);
     }
 
-    // sets the timer to 2 weeks from now
-    // function setTimer() public {
-    //     timer.setDeadline(uint64(block.timestamp + 14 days));
-    // }
-
-    //  function getDeadline(Timestamp memory timer) internal pure returns (uint64) {
-    //     return timer._deadline;
-    // }
-
-    // get time left
-    // function setTimer() public {
-    //     timer.setDeadline(uint64(block.timestamp + 14 days));
-    // }
 
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
@@ -358,14 +264,14 @@ contract Latter {
         emit ListingInstallmentPaid(
             listingId,
             listing.tokenId,
+            listing.installmentNumber,
+            false,
             listing.nftAddress,
             listing.seller,
             payable(msg.sender),
             listing.listingPrice,
             listing.installmentPrice,
-            listing.installmentNumber,
             timeLeft,
-            false,
             State.NotForSale
         );
 
@@ -384,6 +290,9 @@ contract Latter {
             emit PaidOff(
                 listingId,
                 listing.tokenId,
+                listing.installmentNumber,
+                // time set to expired
+                true,
                 listing.nftAddress,
                 // 0 address
                 payable(address(0)),
@@ -391,10 +300,7 @@ contract Latter {
                 payable(address(0)),
                 listing.listingPrice,
                 listing.installmentPrice,
-                listing.installmentNumber,
                 timeLeft,
-                // time set to expired
-                true,
                 State.NotForSale
             );
         }
