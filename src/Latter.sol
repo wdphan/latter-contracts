@@ -77,13 +77,13 @@ contract Latter is ILatter{
     ) external {
         // price to list cannot be negaive
         if (listingPrice <= 0) {
-            revert("Price must be above 0");
+            revert PriceBelowZero();
         }
         // give Latter marketplace approval
         IERC721 nft = IERC721(nftAddress);
         if (nft.getApproved(tokenId) != address(this)) {
             // put this on another doc
-            revert("This user is not approved for the marketplace.");
+            revert UserNotApproved();
         }
 
         // default increment when listing
@@ -132,28 +132,28 @@ contract Latter is ILatter{
 
     function deleteListing(uint256 listingId) external {
         // require valid token Id
-        require(listingId <= listingCounter.current(), "id not valid");
+        if(listingId <= listingCounter.current()) {
+            revert IdNotValid();
+        }
         // make sure caller is valid
-        require(
-            msg.sender == listings[listingId].seller ||
-                msg.sender == marketplaceContract,
-            "not NFT owner"
-        );
+        if(msg.sender == !listings[listingId].seller ||
+                msg.sender == !marketplaceContract){
+                    revert NotOperator();
+                }
         // ensure listing is up for sale
-        require(listings[listingId].state == State.ForSale);
+        if (listings[listingId].state == !State.ForSale){
+            revert NotForSale();
+        }
 
         Listing storage listing = listings[listingId];
         // must be the owner
-        require(
-            IERC721(listing.nftAddress).ownerOf(listing.tokenId) == msg.sender,
-            "must be the owner"
-        );
+        if (IERC721(listing.nftAddress).ownerOf(listing.tokenId) == !msg.sender){
+            revert NotNFTOwner();
+        }
         // marketplace must be approved
-        require(
-            IERC721(listing.nftAddress).getApproved(listing.tokenId) ==
-                marketplaceContract,
-            "must be approved"
-        );
+        if (IERC721(listing.nftAddress).getApproved(listing.tokenId) == !marketplaceContract){
+            revert UserNotApproved();
+        }
 
         // change the current seller of listing to zero address
         listing.seller = payable(address(0));
@@ -220,7 +220,6 @@ contract Latter is ILatter{
         IERC721(listing.nftAddress).approve(address(0), listingId);
     }
 
-
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
     function makePayment(uint256 listingId) public payable {
@@ -228,23 +227,20 @@ contract Latter is ILatter{
         // approve the sole payer from here on out with approve internal function
         approveAddress(listingId);
         // Checks if the one sending in eth is approved to do so
-        require(
-            IERC721(listing.nftAddress).isApprovedForAll(
+        if ( IERC721(listing.nftAddress).isApprovedForAll(
                 listing.seller,
                 msg.sender
-            ) == true,
-            "must be approved"
-        );
+            ) == !true){
+                revert UserNotApproved();
+            }
 
         // Calculate the transaction fee
         uint256 fee = installmentAmount.mul(transactionFee);
         // Check that the correct payment amount is received
         // installmentPrice + the transaction fee
-        require(
-            msg.value >= listing.installmentPrice.add(fee),
-            "Incorrect installment amount"
-        );
-
+        if ( msg.value >= listing.installmentPrice.add(fee){
+            revert IncorrectInstallmentAmount();
+        }
         // change the state of the nft
         listing.state = State.PaymentActive;
 
@@ -320,10 +316,9 @@ contract Latter is ILatter{
     function revertNFT(uint256 listingId) internal view {
         Listing storage listing = listings[listingId];
         // Check that a payment is overdue by seeing if current time is greater than time limit
-        require(
-            block.timestamp > installmentTimeLimit,
-            "No payment is overdue"
-        );
+        if (block.timestamp > installmentTimeLimit) {
+            revert InstallmentOverdue();
+        }
         // operator is set to false
         IERC721(listing.nftAddress).isApprovedForAll(
             listing.seller,

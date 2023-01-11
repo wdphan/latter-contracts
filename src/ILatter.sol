@@ -84,6 +84,31 @@ interface ILatter {
         State state
     );
 
+    // price is below zero
+    error PriceBelowZero();
+    
+    // user is not approved for the marketplace
+    error UserNotApproved();
+
+    // invalid tokenId
+    error IdNotValid();
+
+    // caller not valid
+    error NotOperator();
+
+    // not for sale
+    error NotForSale();
+
+    // not NFT owner
+    error NotNFTOwner();
+
+    // incorrect installment amount
+    error IncorrectInstallmentAmount();
+
+    // installment overdue - passed 2 week due date
+    error InstallmentOverdue();
+
+
     // The address of the original owner of the NFT
     function originalOwner() external returns (address);
 

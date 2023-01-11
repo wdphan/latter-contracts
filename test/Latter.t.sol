@@ -2,11 +2,18 @@
 pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
+import {Latter} from "src/Latter.sol";
+import {ILatter} from "src/ILatter.sol";
 
-import {SampleContract} from "../src/SampleContract.sol";
+contract LatterTest is Test {
+    
+    Latter latter;
 
-contract SampleContractTest is Test {
-    SampleContract sampleContract;
+    address bob = vm.addr(111);
+    address bill = vm.addr(222);
+    address joe = vm.addr(333);
+
+    receive() external payable {}
 
     function setUp() public {
         sampleContract = new SampleContract();
