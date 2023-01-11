@@ -6,6 +6,6 @@ A mini-implementation of [Affirm](https://www.affirm.com/how-it-works). Pay-in-f
 
 [Contract Source](src)
 
-## Forking
+## License
 
-This project is licenced with the '[Do What The F\*ck You Want To Public License (wtfpl)](https://choosealicense.com/licenses/wtfpl/)' licence, and the permissions/limitations are rather self-explanatory. Attribution isn't required, but I'd appreciate it.
+This script is open-source and licensed under the MIT License. For more details, check the [LICENSE](LICENSE) file.
