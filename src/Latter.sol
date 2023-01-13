@@ -176,39 +176,6 @@ contract Latter is ILatter{
         );
     }
 
-    // function to get the total installment amount due
-    // installment + the transaction fee
-    function getInstallmentAmountPlusFee(uint256 tokenId)
-        public
-        view
-        returns (uint256 pricePlusFee)
-    {
-        Listing storage listing = listings[tokenId];
-        // calculate the transaction fee
-        uint256 fee = listing.installmentPrice * transactionFee;
-        // add the transaction fee to the installment amount
-        uint256 totalAmountDue = listings[tokenId].installmentPrice + fee;
-        return totalAmountDue;
-    }
-
-    // function to get the installment amount only without transaction fee
-    function getInstallmentAmountOnly(uint256 tokenId)
-        public
-        view
-        returns (uint256 price)
-    {
-        Listing storage listing = listings[tokenId];
-        // calculate the transaction fee
-        uint256 installmentPrice = listing.installmentPrice;
-        return installmentPrice;
-    }
-
-    // Function to remove/reset an address from approval
-    function removeApproval(uint256 tokenId) internal {
-        Listing storage listing = listings[tokenId];
-        IERC721(listing.nftAddress).approve(address(0), tokenId);
-    }
-
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
     function makePayment(uint256 tokenId) public payable {
@@ -293,6 +260,39 @@ contract Latter is ILatter{
         ) {
             revertNFT(listing.tokenId);
         }
+    }
+
+    // function to get the total installment amount due
+    // installment + the transaction fee
+    function getInstallmentAmountPlusFee(uint256 tokenId)
+        public
+        view
+        returns (uint256 pricePlusFee)
+    {
+        Listing storage listing = listings[tokenId];
+        // calculate the transaction fee
+        uint256 fee = listing.installmentPrice * transactionFee;
+        // add the transaction fee to the installment amount
+        uint256 totalAmountDue = listings[tokenId].installmentPrice + fee;
+        return totalAmountDue;
+    }
+
+    // function to get the installment amount only without transaction fee
+    function getInstallmentAmountOnly(uint256 tokenId)
+        public
+        view
+        returns (uint256 price)
+    {
+        Listing storage listing = listings[tokenId];
+        // calculate the transaction fee
+        uint256 installmentPrice = listing.installmentPrice;
+        return installmentPrice;
+    }
+
+    // Function to remove/reset an address from approval
+    function removeApproval(uint256 tokenId) internal {
+        Listing storage listing = listings[tokenId];
+        IERC721(listing.nftAddress).approve(address(0), tokenId);
     }
 
     // Function to revert the NFT back to the original owner if a payment is missed
