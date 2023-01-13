@@ -10,10 +10,9 @@ interface ILatter {
     }
 
     struct Listing {
-            uint16 listingId;
-            uint16 tokenId;
-            uint8 installmentNumber;
             bool isExpired;
+            uint256 installmentNumber;
+            uint256 tokenId;
             address nftAddress;
             address payable seller;
             address payable buyer;
@@ -25,25 +24,23 @@ interface ILatter {
         }
 
      event ListingCreated(
-        uint256 indexed listingId,
+        bool isExpired,
+        uint256 installmentNumber,
         uint256 indexed tokenId,
         address indexed nftAddress,
         address payable seller,
         address payable buyer,
         uint256 listingPrice,
         uint256 installmentPrice,
-        uint8 installmentNumber,
         // time left until next installment due
         uint256 timeLeft,
-        bool isExpired,
         State state
     );
 
      event ListingInstallmentPaid(
-        uint16 indexed listingId,
-        uint16 indexed tokenId,
         bool isExpired,
-        uint8 installmentNumber,
+        uint256 installmentNumber,
+        uint256 indexed tokenId,
         address indexed nftAddress,
         address payable seller,
         address payable buyer,
@@ -55,10 +52,9 @@ interface ILatter {
     );
 
     event PaidOff(
-        uint16 indexed listingId,
-        uint16 indexed tokenId,
-        uint8 installmentNumber,
         bool isExpired,
+        uint256 installmentNumber,
+        uint256 indexed tokenId,
         address indexed nftAddress,
         address payable seller,
         address payable buyer,
@@ -70,17 +66,11 @@ interface ILatter {
     );
 
     event ListingDeleted(
-        uint16 indexed listingId,
-        uint16 indexed tokenId,
-        uint8 installmentNumber,
         bool isExpired,
+        uint256 indexed tokenId,
         address indexed nftAddress,
         address payable seller,
-        address payable buyer,
-        uint256 listingPrice,
-        uint256 installmentPrice,
-        // time left until next installment due
-        uint256 timeLeft,
+        uint256 time,
         State state
     );
 
@@ -90,8 +80,11 @@ interface ILatter {
     // user is not approved for the marketplace
     error UserNotApproved();
 
-    // invalid tokenId
-    error IdNotValid();
+    // token already listed
+    error TokenAlreadyListed();
+
+    // // invalid tokenId
+    // error IdNotValid();
 
     // caller not valid
     error NotOperator();
@@ -103,17 +96,13 @@ interface ILatter {
     error NotNFTOwner();
 
     // incorrect installment amount
-    error IncorrectInstallmentAmount();
+    error IncorrectInstallmentAmountPlusFee();
 
     // installment overdue - passed 2 week due date
     error InstallmentOverdue();
 
-
     // The address of the original owner of the NFT
     function originalOwner() external returns (address);
-
-    // The address of the marketplace contract
-    function marketplaceContract() external returns (address);
 
     // The address of the marketplace contract owner
     function marketplaceOwner() external returns (address);
@@ -128,30 +117,31 @@ interface ILatter {
     function transactionFee() external returns (uint);
 
     // mapping of current listings
-    function listings() external returns (uint16 listingId,
-    uint16 tokenId, 
-    uint8 installmentNumber, 
-    bool isExpired, 
-    address nftAddress, 
-    address payable seller, 
-    address payable buyer, 
-    uint256 listingPrice, 
-    uint256 installmentPrice,
-    // time left until next installment due
-    uint256 timeLeft,
-    State state);
-    
-    // checks if address is valid with id
-    function approved() external returns (address);
+    // function listings() external returns (
+    //  bool isExpired,
+    //         uint256 installmentNumber,
+    //         uint256 tokenId,
+    //         address nftAddress,
+    //         address payable seller,
+    //         address payable buyer,
+    //         uint256 listingPrice,
+    //         uint256 installmentPrice,
+    //         // time left until next installment due
+    //         uint256 timeLeft,
+    //         State state);
     
     // Function to list an NFT for sale
-    function listItem() external;
+    function listItem(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 listingPrice
+    ) external;
 
-    function deleteListing () external;
+    function deleteListing(address nftAddress, uint256 tokenId) external;
 
-    function installmentAmountPlusFee(uint256 listingId) external returns (uint256);
+    function getInstallmentAmountPlusFee(uint256 listingId) external returns (uint256);
 
-    function installmentAmountOnly(uint256 listingId) external returns (uint256);
+    function getInstallmentAmountOnly(uint256 listingId) external returns (uint256);
 
-    function makePayment() external;
+    function makePayment(uint256 tokenId) external payable;
 }
