@@ -55,15 +55,6 @@ contract Latter is ILatter{
     // checks if address is valid
     mapping(uint256 => address) public approved;
 
-    // checks if the listing has had one address approved already
-    modifier onlyOneApproval(uint256 _tokenId) {
-        require(
-            approved[_tokenId] == address(0),
-            "Only one approval is allowed"
-        );
-        _;
-    }
-
     // The constructor with settings
     constructor(address _marketplaceOwner) {
         marketplaceOwner = _marketplaceOwner;
@@ -180,29 +171,54 @@ contract Latter is ILatter{
     // make sure first payer will stay the first payer until after late time
     function makePayment(uint256 tokenId) public payable {
         Listing storage listing = listings[tokenId];
-        // approve the sole payer from here on out with approve internal function
+        // checks if installment number is greater than 1 to see
+        // if there was not an existing buyer
+        // otherwise revert
+        if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
+            revert UserNotApproved();
+        }
+
+        // set the buyer and approve him of NFT for first installment
+        if (listing.installmentNumber == 0) {
+            listing.buyer = payable(msg.sender);
+            IERC721(listing.nftAddress).approve(msg.sender, tokenId);
+        }
+
+        // check if initial buyer is msg.sender
+        // check if installment number is between 1-4
+        if (listing.buyer == msg.sender || listing.installmentNumber > 1 && listing.installmentNumber < 4){
+        // otherwise, approve the payer of the token
         IERC721(listing.nftAddress).approve(msg.sender, tokenId);
-        // Checks if the one sending in eth is approved
-        if (IERC721(listing.nftAddress).getApproved(tokenId) != msg.sender){
-                revert UserNotApproved();
-            }
-
-        // Calculate the transaction fee
-        uint256 fee = installmentAmount * transactionFee;
-        // Check that the correct payment amount is received
-        // installmentPrice + the transaction fee
-        if (msg.value >= listing.installmentPrice + fee) {
-            revert IncorrectInstallmentAmountPlusFee();
         }
 
-        if(listing.installmentNumber > 0){
-             // change the state of the nft
-             listing.state = State.PaymentActive;
-        }
+        // Check if all 4 installment payments have been made
+        // if so, transfer the NFT
+        if (listing.installmentNumber == 4) {
+            // change the listing state to NotForSale
+            listing.state = State.NotForSale;
+            // Transfer ownership of the NFT from the seller to the msg.sender
+            IERC721(listing.nftAddress).safeTransferFrom(
+                listing.seller,
+                msg.sender,
+                listing.tokenId
+        );
 
         // Increment the number of installment payments made
         listing.installmentNumber++;
 
+        // Calculate the transaction fee
+        uint256 fee = installmentAmount * transactionFee;
+
+        // Check that the correct payment amount is received
+        // installmentPrice + the transaction fee
+        if (msg.value >= listing.installmentPrice + fee || msg.value <= listing.installmentPrice + fee) {
+            revert IncorrectInstallmentAmountPlusFee();
+        }
+
+        // set payment active
+        listing.state = State.PaymentActive;
+
+        // increase deadline of 14 days until next installment
         timer.setDeadline(uint64(block.timestamp + 14 days));
 
         uint256 deadline = timer.getDeadline();
@@ -219,24 +235,12 @@ contract Latter is ILatter{
             listing.tokenId,
             listing.nftAddress,
             listing.seller,
-            payable(msg.sender),
+            listing.buyer,
             listing.listingPrice,
             listing.installmentPrice,
             timeLeft,
             State.NotForSale
         );
-
-        // Check if all 4 installment payments have been made
-        // if so, transfer the NFT
-        if (listing.installmentNumber == 4) {
-            // change the listing state to NotForSale
-            listing.state = State.NotForSale;
-            // Transfer ownership of the NFT from the seller to the msg.sender
-            IERC721(listing.nftAddress).safeTransferFrom(
-                listing.seller,
-                msg.sender,
-                listing.tokenId
-            );
 
             emit PaidOff(
                 true,
@@ -251,10 +255,9 @@ contract Latter is ILatter{
                 State.NotForSale
             );
         }
-
         // if the listing is expired and the current installment paid is less than 4,
         // revert and remove operator
-           if (
+        if (
             listing.isExpired == true &&
             listing.installmentNumber <= 4 || listing.isExpired == true
         ) {
@@ -262,7 +265,7 @@ contract Latter is ILatter{
         }
     }
 
-    // function to get the total installment amount due
+        // function to get the total installment amount due
     // installment + the transaction fee
     function getInstallmentAmountPlusFee(uint256 tokenId)
         public
