@@ -200,11 +200,6 @@ contract Latter is ILatter{
              listing.state = State.PaymentActive;
         }
 
-        // transfers part of the value (calculated fee) that was sent to the marketplace
-        payable(address(this)).transfer(fee);
-        // transfers part of the value (calculated installmentPrice) that was sent to the seller
-        payable(listing.seller).transfer(listing.installmentPrice);
-
         // Increment the number of installment payments made
         listing.installmentNumber++;
 
@@ -212,6 +207,11 @@ contract Latter is ILatter{
 
         uint256 deadline = timer.getDeadline();
         uint256 timeLeft = deadline - block.timestamp;
+
+        // transfers part of the value (calculated fee) that was sent to the marketplace
+        payable(address(this)).transfer(fee);
+        // transfers part of the value (calculated installmentPrice) that was sent to the seller
+        payable(listing.seller).transfer(listing.installmentPrice);
 
         emit ListingInstallmentPaid(
             false,
@@ -254,9 +254,9 @@ contract Latter is ILatter{
 
         // if the listing is expired and the current installment paid is less than 4,
         // revert and remove operator
-        if (
+           if (
             listing.isExpired == true &&
-            listing.installmentNumber <= 4
+            listing.installmentNumber <= 4 || listing.isExpired == true
         ) {
             revertNFT(listing.tokenId);
         }
