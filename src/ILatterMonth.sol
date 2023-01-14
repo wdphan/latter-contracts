@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-interface ILatter {
+interface ILatterMonth {
 
     enum State {
         ForSale,
@@ -11,6 +11,7 @@ interface ILatter {
 
     struct Listing {
             bool isExpired;
+            uint8 numberOfMonths;
             uint256 installmentNumber;
             uint256 tokenId;
             address nftAddress;
@@ -31,7 +32,6 @@ interface ILatter {
         address payable seller,
         address payable buyer,
         uint256 listingPrice,
-        uint256 installmentPrice,
         // time left until next installment due
         uint256 timeLeft,
         State state
@@ -39,6 +39,7 @@ interface ILatter {
 
      event ListingInstallmentPaid(
         bool isExpired,
+        uint8 numberOfMonths,
         uint256 installmentNumber,
         uint256 indexed tokenId,
         address indexed nftAddress,
@@ -53,6 +54,7 @@ interface ILatter {
 
     event PaidOff(
         bool isExpired,
+        uint8 numberOfMonths,
         uint256 installmentNumber,
         uint256 indexed tokenId,
         address indexed nftAddress,
@@ -110,25 +112,8 @@ interface ILatter {
     // The due date for each payment
     function installmentTimeLimit() external returns (uint);
 
-    // The amount of the payment due every 2 weeks
-    function installmentAmount() external returns (uint);
-
     // The marketplace transaction fee (0.5%)
     function transactionFee() external returns (uint);
-
-    // mapping of current listings
-    // function listings() external returns (
-    //  bool isExpired,
-    //         uint256 installmentNumber,
-    //         uint256 tokenId,
-    //         address nftAddress,
-    //         address payable seller,
-    //         address payable buyer,
-    //         uint256 listingPrice,
-    //         uint256 installmentPrice,
-    //         // time left until next installment due
-    //         uint256 timeLeft,
-    //         State state);
     
     // Function to list an NFT for sale
     function listItem(
@@ -143,5 +128,5 @@ interface ILatter {
 
     function getInstallmentAmountOnly(uint256 listingId) external returns (uint256);
 
-    function makePayment(uint256 tokenId) external payable;
+    function makePayment(uint256 tokenId, uint8 numberOfMonths) external payable;
 }

@@ -3,12 +3,12 @@ pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
 import {LatterBase} from "src/LatterBase.sol";
-import {ILatter} from "src/ILatter.sol";
+import {ILatterBase} from "src/ILatterBase.sol";
 import {MyNFT} from "src/MyNFT.sol";
 
 contract LatterTest is Test {
     
-    Latter public latter;
+    LatterBase public latter;
     MyNFT public nft;
     LatterTest public test;
 
@@ -19,7 +19,7 @@ contract LatterTest is Test {
     receive() external payable {}
 
     function setUp() public {
-        latter = new Latter(owner);
+        latter = new LatterBase(owner);
         nft = new MyNFT();
 
         vm.label(bob, "BOB");

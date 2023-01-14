@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Counters.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
-import "src/ILatterBase.sol";
+import "src/ILatterMonth.sol";
 
 // List and Sell NFTs 
 // include marketplace fee
@@ -19,7 +19,7 @@ import "src/ILatterBase.sol";
 /// @custom:experimental This is an experimental contract.
 
 // Set the contract to be owned
-contract LatterBase is ILatterBase{
+contract LatterMonth is ILatterMonth{
     using Timers for Timers.Timestamp;
     using Counters for Counters.Counter;
 
@@ -43,9 +43,6 @@ contract LatterBase is ILatterBase{
 
     // The due date for each payment
     uint256 public installmentTimeLimit;
-
-    // // The amount of the payment due every 2 weeks
-    // uint256 public installmentAmount;
 
     // The marketplace transaction fee (0.5%)
     uint256 public transactionFee = uint256(0.005 * 10**18);
@@ -88,16 +85,15 @@ contract LatterBase is ILatterBase{
         // increment listing counter
         listingCounter.increment();
 
-        // set installment price
-        // installment price = listing price divided by 4
-        uint256 installmentPrice = listingPrice / 4;
-
         // current installment counter = 0
         uint256 installmentCounter = 0;
+        uint256 installmentPrice = 0;
+        uint8 numberOfMonths = 0;
 
         // inputs for new listing
         Listing memory newListing = Listing(
             false,
+            numberOfMonths,
             installmentCounter,
             tokenId,
             nftAddress,
@@ -119,7 +115,6 @@ contract LatterBase is ILatterBase{
             payable(msg.sender),
             payable(address(0)),
             listingPrice,
-            installmentPrice,
             block.timestamp,
             State.ForSale
         );
@@ -154,7 +149,7 @@ contract LatterBase is ILatterBase{
 
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
-    function makePayment(uint256 tokenId) public payable {
+    function makePayment(uint256 tokenId, uint8 numberOfMonths) public payable {
         Listing storage listing = listings[tokenId];
         // checks if installment number is greater than 1 to see
         // if there was not an existing buyer
@@ -167,17 +162,17 @@ contract LatterBase is ILatterBase{
         if (listing.installmentNumber == 0) {
             listing.buyer = payable(msg.sender);
         }
-        
-        // **check this**
+
         // check if initial buyer is msg.sender
-        // check if installment number is between not less than 1 and not greater than 4
-        if (listing.buyer != msg.sender || listing.installmentNumber < 1 && listing.installmentNumber > 4){
+        // check if installment number is between not less than 1 month and
+        // greater than the number of months set by buyer
+        if (listing.buyer != msg.sender || listing.installmentNumber < 1 && listing.installmentNumber > numberOfMonths){
             revert UserNotApproved();
         }
 
-        // Check if all 4 installment payments have been made
+        // Check if all installment payments have been made
         // if so, transfer the NFT
-        if (listing.installmentNumber == 4) {
+        if (listing.installmentNumber == numberOfMonths) {
             // change the listing state to NotForSale
             listing.state = State.NotForSale;
             // Transfer ownership of the NFT from the seller to the msg.sender
@@ -187,15 +182,20 @@ contract LatterBase is ILatterBase{
                 listing.tokenId
         );
 
+        listing.numberOfMonths = numberOfMonths;
+
         // Increment the number of installment payments made
         listing.installmentNumber++;
 
+        // set the installment amount
+        uint installmentAmount = listing.listingPrice / numberOfMonths;
+
         // Calculate the transaction fee
-        uint256 fee = listing.installmentPrice * transactionFee;
+        uint256 fee = installmentAmount * transactionFee;
 
         // Check that the correct payment amount is received
-        // if less, then revert
         // installmentPrice + the transaction fee
+        // if less, then revert
         if (msg.value < listing.installmentPrice + fee) {
             revert IncorrectInstallmentAmountPlusFee();
         }
@@ -203,8 +203,8 @@ contract LatterBase is ILatterBase{
         // set payment active
         listing.state = State.PaymentActive;
 
-        // increase deadline of 14 days until next installment
-        timer.setDeadline(uint64(block.timestamp + 14 days));
+        // increase deadline of 30 days until next installment
+        timer.setDeadline(uint64(block.timestamp + 30 days));
 
         uint256 deadline = timer.getDeadline();
         uint256 timeLeft = deadline - block.timestamp;
@@ -216,6 +216,7 @@ contract LatterBase is ILatterBase{
 
         emit ListingInstallmentPaid(
             false,
+            listing.numberOfMonths,
             listing.installmentNumber,
             listing.tokenId,
             listing.nftAddress,
@@ -229,6 +230,7 @@ contract LatterBase is ILatterBase{
 
             emit PaidOff(
                 true,
+                listing.numberOfMonths,
                 listing.installmentNumber,
                 listing.tokenId,
                 listing.nftAddress,
