@@ -4,26 +4,124 @@ pragma solidity 0.8.15;
 import {Test} from "forge-std/Test.sol";
 import {Latter} from "src/Latter.sol";
 import {ILatter} from "src/ILatter.sol";
+import {MyNFT} from "src/MyNFT.sol";
 
 contract LatterTest is Test {
     
-    Latter latter;
+    Latter public latter;
+    MyNFT public nft;
+    LatterTest public test;
 
     address bob = vm.addr(111);
     address bill = vm.addr(222);
-    address joe = vm.addr(333);
+    address owner = vm.addr(333);
 
     receive() external payable {}
 
     function setUp() public {
-        sampleContract = new SampleContract();
+        latter = new Latter(owner);
+        nft = new MyNFT();
+
+        vm.label(bob, "BOB");
+        vm.deal(bob, 100 ether);
+
+        vm.label(bill, "BILL");
+        vm.deal(bill, 100 ether);
+
+        vm.label(owner, "OWNER");
+        vm.deal(owner, 100 ether);
+
+        vm.deal(address(this), 100 ether);
     }
 
-    function testFunc1() public {
-        sampleContract.func1(1337);
+   function testMint() public {
+        nft.safeMint(bob, 1);
+        nft.safeMint(bob, 2);
     }
 
-    function testFunc2() public {
-        sampleContract.func2(1337);
+    function testFailMint() public {
+        nft.safeMint(bob, 1);
+        nft.safeMint(bob, 1);
+    }
+
+    function testListItem() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // execute contract
+        latter.listItem(address(nft), 1, 100);
+    }
+
+    //edit
+    function testDeleteListing() public {
+         // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // list item
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 100);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        vm.prank(address(bob));
+        nft.approve(address(latter), 1);
+        vm.prank(address(bob));
+        latter.deleteListing(address(nft), 1);
+        
+    }
+
+    function testMakePayment() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // execute contract
+        latter.listItem(address(nft), 1, 100);
+
+        // // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+        vm.prank(bill);
+        latter.makePayment{value: 1 ether}(1);
+    }
+
+    function testGetInstallmentPlusFee() public {
+         // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        latter.getInstallmentAmountPlusFee(1);
+    }
+
+    function testGetInstallmentAmountOnly() public {
+         // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        latter.getInstallmentAmountOnly(1);
     }
 }

@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Counters.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
+import "src/ILatter.sol";
 
 // List and Sell NFTs 
 // include marketplace fee
@@ -20,7 +21,6 @@ import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 // Set the contract to be owned
 contract Latter is ILatter{
     using Timers for Timers.Timestamp;
-    using SafeMath for uint256;
     using Counters for Counters.Counter;
 
     // Timer to track the expiration of an action or event
@@ -70,11 +70,9 @@ contract Latter is ILatter{
         if (listingPrice <= 0) {
             revert PriceBelowZero();
         }
+
         IERC721 nft = IERC721(nftAddress);
 
-        
-        // give Latter marketplace approval
-        nft.approve(address(this), tokenId);
         // if the marketplace not approved, then revert
         if (IERC721(nftAddress).getApproved(tokenId) != address(this)) {
             // put this on another doc
@@ -129,22 +127,21 @@ contract Latter is ILatter{
 
     function deleteListing(address nftAddress, uint256 tokenId) external {
 
-        // require valid token Id is listed for sale
-        if(listings[tokenId].state == State.ForSale) {
-            revert NotForSale();
-        }
-        // make sure caller is valid operator/owner
-        if(listings[tokenId].seller != msg.sender){
-            revert NotOperator();
-        }
-
         // grab token listing
         Listing storage listing = listings[tokenId];
+
+        // require valid token Id is listed for sale
+        if(listing.state != State.ForSale) {
+            revert NotForSale();
+        }
+        
+        // make sure caller is valid operator/owner
+        if(msg.sender != listing.seller){
+            revert NotOperator();
+        }
         
         IERC721 nft = IERC721(nftAddress);
 
-        // approve marketplace
-        nft.approve(address(this), tokenId);
         // marketplace must be approved
         if (nft.getApproved(listing.tokenId) != address(this)){
             revert UserNotApproved();
@@ -181,14 +178,14 @@ contract Latter is ILatter{
         // set the buyer and approve him of NFT for first installment
         if (listing.installmentNumber == 0) {
             listing.buyer = payable(msg.sender);
-            IERC721(listing.nftAddress).approve(msg.sender, tokenId);
+            // IERC721(listing.nftAddress).approve(msg.sender, tokenId);
         }
 
         // check if initial buyer is msg.sender
         // check if installment number is between 1-4
         if (listing.buyer == msg.sender || listing.installmentNumber > 1 && listing.installmentNumber < 4){
         // otherwise, approve the payer of the token
-        IERC721(listing.nftAddress).approve(msg.sender, tokenId);
+        // IERC721(listing.nftAddress).approve(msg.sender, tokenId);
         }
 
         // Check if all 4 installment payments have been made
@@ -211,7 +208,7 @@ contract Latter is ILatter{
 
         // Check that the correct payment amount is received
         // installmentPrice + the transaction fee
-        if (msg.value >= listing.installmentPrice + fee || msg.value <= listing.installmentPrice + fee) {
+        if (msg.value >= listing.installmentPrice + fee) {
             revert IncorrectInstallmentAmountPlusFee();
         }
 
