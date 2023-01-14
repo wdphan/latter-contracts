@@ -2,7 +2,7 @@
 pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
-import {Latter} from "src/Latter.sol";
+import {LatterBase} from "src/LatterBase.sol";
 import {ILatter} from "src/ILatter.sol";
 import {MyNFT} from "src/MyNFT.sol";
 
@@ -77,8 +77,8 @@ contract LatterTest is Test {
 
         vm.prank(address(bob));
         nft.approve(address(latter), 1);
-        vm.prank(address(bob));
-        latter.deleteListing(address(nft), 1);
+        vm.prank(address(test));
+        latter.deleteListing(1);
         
     }
 

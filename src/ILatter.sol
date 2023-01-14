@@ -137,7 +137,7 @@ interface ILatter {
         uint256 listingPrice
     ) external;
 
-    function deleteListing(address nftAddress, uint256 tokenId) external;
+    function deleteListing(uint256 tokenId) external;
 
     function getInstallmentAmountPlusFee(uint256 listingId) external returns (uint256);
 

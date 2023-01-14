@@ -125,25 +125,13 @@ contract Latter is ILatter{
         );
     }
 
-    function deleteListing(address nftAddress, uint256 tokenId) external {
+    function deleteListing(uint256 tokenId) external {
 
-        // grab token listing
+          // grab token listing
         Listing storage listing = listings[tokenId];
 
-        // require valid token Id is listed for sale
-        if(listing.state != State.ForSale) {
-            revert NotForSale();
-        }
-        
-        // make sure caller is valid operator/owner
-        if(msg.sender != listing.seller){
-            revert NotOperator();
-        }
-        
-        IERC721 nft = IERC721(nftAddress);
-
-        // marketplace must be approved
-        if (nft.getApproved(listing.tokenId) != address(this)){
+          // check if the caller is the owner of the listing
+        if (msg.sender != listings[tokenId].seller) {
             revert UserNotApproved();
         }
 
