@@ -12,7 +12,7 @@ import "src/ILatterBase.sol";
 // include payment amount
 // include time component and expiry
 
-/// @title Latter
+/// @title Latter Base
 /// @author William Phan
 /// @notice Pay-in-four model. 4 payments made every 2 weeks for an NFT
 /// @dev All function calls are currently implemented without side effects

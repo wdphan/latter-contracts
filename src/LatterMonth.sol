@@ -12,9 +12,9 @@ import "src/ILatterMonth.sol";
 // include payment amount
 // include time component and expiry
 
-/// @title Latter
+/// @title Latter Month
 /// @author William Phan
-/// @notice Pay-in-four model. 4 payments made every 2 weeks for an NFT
+/// @notice Monthly payment model. Buyer decides how many Months/Installments.
 /// @dev All function calls are currently implemented without side effects
 /// @custom:experimental This is an experimental contract.
 
