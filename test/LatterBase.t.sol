@@ -29,9 +29,6 @@ contract LatterTest is Test {
         vm.deal(bill, 100 ether);
 
         vm.label(owner, "OWNER");
-        vm.deal(owner, 100 ether);
-
-        vm.deal(address(this), 100 ether);
     }
 
    function testMint() public {
