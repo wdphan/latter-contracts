@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
 import {LatterBase} from "src/LatterBase.sol";
-import {ILatterBase} from "src/ILatterBase.sol";
+import {ILatterBase} from "src/interface/ILatterBase.sol";
 import {MyNFT} from "src/MyNFT.sol";
 
 contract LatterTest is Test {

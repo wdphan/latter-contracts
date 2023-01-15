@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
 import {LatterMonth} from "src/LatterMonth.sol";
-import {ILatterMonth} from "src/ILatterMonth.sol";
+import {ILatterMonth} from "src/interface/ILatterMonth.sol";
 import {MyNFT} from "src/MyNFT.sol";
 
 contract LatterTest is Test {
