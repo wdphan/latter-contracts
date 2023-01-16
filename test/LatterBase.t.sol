@@ -51,35 +51,32 @@ contract LatterTest is Test {
         nft.approve(address(latter), 1);
 
         // execute contract
+        vm.prank(bob);
         latter.listItem(address(nft), 1, 100);
     }
 
-    //edit
-    function testDeleteListing() public {
-         // bob mint token
+    // idk
+   function testDeleteListing() public {
+      // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
 
-        // bob approves latter contract
+        // // bob approves latter contract
         vm.prank(bob);
         nft.approve(address(latter), 1);
 
-        // list item
+        // bob lists item
         vm.prank(bob);
         latter.listItem(address(nft), 1, 100);
-
-        // bob approves latter contract
-        vm.prank(bob);
-        nft.approve(address(latter), 1);
-
-        vm.prank(address(bob));
-        nft.approve(address(latter), 1);
-        vm.prank(address(test));
-        latter.deleteListing(1);
+        assertEq(nft.balanceOf(address(latter)), 1);
+        // test contract calls delete listing, since it's the owner
+        // of NFT
         
+        vm.prank(address(bob));
+        latter.deleteListing(1);
     }
 
-    function testMakePayment() public {
+   function testMakePayment() public {
         // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
@@ -88,15 +85,15 @@ contract LatterTest is Test {
         vm.prank(bob);
         nft.approve(address(latter), 1);
 
-        // execute contract
+        // bob approves and executes contract
+        vm.prank(bob);
         latter.listItem(address(nft), 1, 100);
 
-        // // bob approves latter contract
-        vm.prank(bob);
-        nft.approve(address(latter), 1);
+        // bill makes payment
         vm.prank(bill);
         latter.makePayment{value: 1 ether}(1);
     }
+
 
     function testGetInstallmentPlusFee() public {
          // bob mint token
@@ -106,7 +103,7 @@ contract LatterTest is Test {
         // bob approves latter contract
         vm.prank(bob);
         nft.approve(address(latter), 1);
-
+        
         latter.getInstallmentAmountPlusFee(1);
     }
 

@@ -95,7 +95,7 @@ contract LatterTest is Test {
         vm.prank(bob);
         nft.approve(address(latter), 1);
         vm.prank(bill);
-        latter.makePayment{value: 1 ether}(1, 1);
+        latter.makePayment{value: 1 ether}(1, 3);
     }
 
     function testGetInstallmentPlusFee() public {

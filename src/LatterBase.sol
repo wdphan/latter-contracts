@@ -5,6 +5,8 @@ import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Counters.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 import "src/interface/ILatterBase.sol";
+import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+
 
 // List and Sell NFTs 
 // include marketplace fee
@@ -19,7 +21,7 @@ import "src/interface/ILatterBase.sol";
 /// @custom:experimental This is an experimental contract.
 
 // Set the contract to be owned
-contract LatterBase is ILatterBase{
+contract LatterBase is ILatterBase, IERC721Receiver{
     using Timers for Timers.Timestamp;
     using Counters for Counters.Counter;
 
@@ -35,17 +37,11 @@ contract LatterBase is ILatterBase{
     // The ERC721 token contract
     IERC721 public nftContract;
 
-    // The address of the original owner of the NFT
-    address public originalOwner;
-
     // The address of the marketplace contract owner
     address public marketplaceOwner;
 
     // The due date for each payment
     uint256 public installmentTimeLimit;
-
-    // // The amount of the payment due every 2 weeks
-    // uint256 public installmentAmount;
 
     // The marketplace transaction fee (0.5%)
     uint256 public transactionFee = uint256(0.005 * 10**18);
@@ -60,7 +56,7 @@ contract LatterBase is ILatterBase{
         marketplaceOwner = _marketplaceOwner;
     }
 
-    // Function to list an NFT for sale
+     // Function to list an NFT for sale
     function listItem(
         address nftAddress,
         uint256 tokenId,
@@ -73,20 +69,16 @@ contract LatterBase is ILatterBase{
 
         IERC721 nft = IERC721(nftAddress);
 
-        // if the marketplace not approved, then revert
-        if (IERC721(nftAddress).getApproved(tokenId) != address(this)) {
-            // put this on another doc
-            revert UserNotApproved();
-        }
-         // grab token listing
+        // increment listing counter
+        listingCounter.increment();
+
+        // current incremented token listing
         Listing storage listing = listings[tokenId];
+
         // check if token isn't already listed
         if (listing.state != State.ForSale) {
             revert TokenAlreadyListed();
         }
-        
-        // increment listing counter
-        listingCounter.increment();
 
         // set installment price
         // installment price = listing price divided by 4
@@ -110,7 +102,9 @@ contract LatterBase is ILatterBase{
             State.ForSale
         );
 
-        // emit event
+        listings[tokenId] = newListing;
+
+          // emit event
         emit ListingCreated(
             false,
             installmentCounter,
@@ -123,22 +117,32 @@ contract LatterBase is ILatterBase{
             block.timestamp,
             State.ForSale
         );
+        
+        // transfers NFT from caller to contract address
+        nft.safeTransferFrom(msg.sender, address(this), tokenId);
     }
 
-    function deleteListing(uint256 tokenId) external {
+     /// DELETE LISTING ///
 
-          // grab token listing
+   function deleteListing(uint256 tokenId) external {
+
+        // grab token listing
         Listing storage listing = listings[tokenId];
 
-          // check if the caller is the owner of the listing
-        if (msg.sender != listings[tokenId].seller) {
+        // check if the caller is the owner of the listing
+        if (msg.sender != listing.seller) {
             revert UserNotApproved();
         }
 
-        // remove the listing
+        // // Decrement the NFT listing counter
+        // listingCounter.decrement();
+
+        // transfer the NFT back to the seller
+        IERC721(listing.nftAddress).safeTransferFrom(address(this), listing.seller, listing.tokenId);
+
+        // otherwise, remove the listing
         delete listings[tokenId];
 
-        // Decrement the NFT listing counter
         listingCounter.decrement();
 
         // emit listing has been removed by reseting to default values and zero address
@@ -150,7 +154,7 @@ contract LatterBase is ILatterBase{
             block.timestamp,
             State.NotForSale
         );
-    }
+   }
 
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
@@ -250,7 +254,11 @@ contract LatterBase is ILatterBase{
         }
     }
 
-        // function to get the total installment amount due
+      function getListingInfo(uint tokenId) public view returns (Listing memory){
+          return listings[tokenId];
+    }
+
+    // function to get the total installment amount due
     // installment + the transaction fee
     function getInstallmentAmountPlusFee(uint256 tokenId)
         public
@@ -296,5 +304,16 @@ contract LatterBase is ILatterBase{
             listing.seller,
             msg.sender
         ) == false;
+    }
+
+     /// RECEIVE FUNCTION ///
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+      return this.onERC721Received.selector;
     }
 }

@@ -101,9 +101,6 @@ interface ILatterBase {
     // installment overdue - passed 2 week due date
     error InstallmentOverdue();
 
-    // The address of the original owner of the NFT
-    function originalOwner() external returns (address);
-
     // The address of the marketplace contract owner
     function marketplaceOwner() external returns (address);
 

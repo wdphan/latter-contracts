@@ -82,11 +82,11 @@ interface ILatterMonth {
     // user is not approved for the marketplace
     error UserNotApproved();
 
+    // wrong plan
+    error SwitchPlans();
+
     // token already listed
     error TokenAlreadyListed();
-
-    // // invalid tokenId
-    // error IdNotValid();
 
     // caller not valid
     error NotOperator();

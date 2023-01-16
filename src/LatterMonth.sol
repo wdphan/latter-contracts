@@ -151,6 +151,10 @@ contract LatterMonth is ILatterMonth{
     // make sure first payer will stay the first payer until after late time
     function makePayment(uint256 tokenId, uint8 numberOfMonths) public payable {
         Listing storage listing = listings[tokenId];
+
+        if (numberOfMonths < 3) {
+            revert SwitchPlans();
+        }
         // checks if installment number is greater than 1 to see
         // if there was not an existing buyer
         // otherwise revert
@@ -166,7 +170,7 @@ contract LatterMonth is ILatterMonth{
         // check if initial buyer is msg.sender
         // check if installment number is between not less than 1 month and
         // greater than the number of months set by buyer
-        if (listing.buyer != msg.sender || listing.installmentNumber < 1 && listing.installmentNumber > numberOfMonths){
+        if (listing.installmentNumber < 1 && listing.installmentNumber > numberOfMonths){
             revert UserNotApproved();
         }
 
