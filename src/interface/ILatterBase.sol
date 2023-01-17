@@ -121,9 +121,6 @@ interface ILatterBase {
     // The address of the marketplace contract owner
     function marketplaceOwner() external returns (address);
 
-    // The due date for each payment
-    function installmentTimeLimit() external returns (uint);
-
     // The marketplace transaction fee (0.5%)
     function transactionFee() external returns (uint);
 

@@ -55,7 +55,39 @@ contract LatterTest is Test {
         latter.listItem(address(nft), 1, 100);
     }
 
-    // idk
+    function testFailListItemZeroPrice() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // execute contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 0);
+    }
+
+    function testFailListItemAlreadyListed() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // execute contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 0);
+
+        // execute contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 0);
+    }
+
+
    function testDeleteListing() public {
       // bob mint token
         vm.prank(bob);
@@ -69,10 +101,47 @@ contract LatterTest is Test {
         vm.prank(bob);
         latter.listItem(address(nft), 1, 100);
         assertEq(nft.balanceOf(address(latter)), 1);
-        // test contract calls delete listing, since it's the owner
-        // of NFT
         
-        vm.prank(address(bob));
+        vm.prank(bob);
+        latter.deleteListing(1);
+    }
+
+   function testFailDeleteListingNotSeller() public {
+      // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob lists item
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 100);
+        assertEq(nft.balanceOf(address(latter)), 1);
+        
+        vm.prank(bill);
+        latter.deleteListing(1);
+    }
+
+   function testFailDeleteListingAlreadyDeleted() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob lists item
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 100);
+        assertEq(nft.balanceOf(address(latter)), 1);
+        
+        vm.prank(bill);
+        latter.deleteListing(1);
+
+        vm.prank(bill);
         latter.deleteListing(1);
     }
 
@@ -128,6 +197,93 @@ contract LatterTest is Test {
         assertEq(nft.balanceOf(bob), 1);
         // assert bill got his msg.value back, excluding gas
         assertEq(address(bill).balance, 99000000000000000000);
+    }
+    
+    function testFailMakePaymentWithInsufficientAmount() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob approves and executes contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 1 ether);
+
+        // bill makes payment
+        vm.startPrank(bill);
+        latter.makePayment{value: .05 ether}(1);
+    }
+
+    function testFailNotCurrentBuyer() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob approves and executes contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 1 ether);
+
+        // bill makes payment
+        vm.prank(bill);
+        latter.makePayment{value: 1 ether}(1);
+
+        // bob makes payment right after
+        vm.prank(bob);
+        vm.expectRevert();
+        latter.makePayment{value: 1 ether}(1);
+    }
+
+    function functionTestPaidOverFourInstallments () public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob approves and executes contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 1 ether);
+
+        // bill makes payment
+        vm.startPrank(bill);
+        latter.makePayment{value: 1 ether}(1);
+        vm.warp(1 weeks);
+        latter.makePayment{value: 1 ether}(1);
+        vm.warp(1 weeks);
+        latter.makePayment{value: 1 ether}(1);
+        vm.warp(1 weeks);
+        latter.makePayment{value: 1 ether}(1);
+        vm.expectRevert();
+        latter.makePayment{value: 1 ether}(1);
+    }
+
+
+    function testGetListingCount() public {
+        // bob mint token
+        vm.startPrank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        nft.approve(address(latter), 1);
+
+        // bob approves and executes contract
+        latter.listItem(address(nft), 1, 100);
+
+        assertEq(latter.getListingCount(), 1);
+    }
+
+    function testFailGetListingCount() public {
+        vm.expectRevert();
+        assertEq(latter.getListingCount(), 1);
     }
 
 

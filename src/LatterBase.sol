@@ -26,7 +26,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     Timers.Timestamp public timer;
 
     // counts the number of listings - also the listingId, starts from 1
-    Counters.Counter private listingCounter;
+    Counters.Counter public listingCounter;
 
     // counts the number of sold listings
     Counters.Counter private listingSoldCounter;
@@ -37,16 +37,10 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     // The address of the marketplace contract owner
     address public marketplaceOwner;
 
-    // The due date for each payment
-    uint256 public installmentTimeLimit;
-
     // The marketplace transaction fee (0.5%)
     uint256 public transactionFee = msg.value * 5 / 100;
 
     mapping(uint256 => Listing) private listings;
-
-    // checks if address is valid
-    mapping(uint256 => address) public approved;
 
     // The constructor with settings
     constructor(address _marketplaceOwner) {
@@ -63,10 +57,6 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         uint256 tokenId,
         uint256 listingPrice
     ) external {
-        // price to list cannot be negaive
-        if (listingPrice <= 0) {
-            revert PriceBelowZero();
-        }
 
         IERC721 nft = IERC721(nftAddress);
 
@@ -75,6 +65,11 @@ contract LatterBase is ILatterBase, IERC721Receiver{
 
         // current incremented token listing
         Listing storage listing = listings[tokenId];
+
+        // price to list cannot be negaive
+        if (listingPrice <= 0) {
+            revert PriceBelowZero();
+        }
 
         // check if token isn't already listed
         if (listing.state != State.ForSale) {
@@ -103,6 +98,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
             State.ForSale
         );
 
+        // set new listing
         listings[tokenId] = newListing;
 
           // emit event
@@ -123,9 +119,9 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         nft.safeTransferFrom(msg.sender, address(this), tokenId);
     }
 
-     /// DELETE LISTING ///
+    /// DELETE LISTING ///
 
-   function deleteListing(uint256 tokenId) external {
+    function deleteListing(uint256 tokenId) external {
 
         // grab token listing
         Listing storage listing = listings[tokenId];
@@ -134,9 +130,6 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         if (msg.sender != listing.seller) {
             revert UserNotApproved();
         }
-
-        // // Decrement the NFT listing counter
-        // listingCounter.decrement();
 
         // transfer the NFT back to the seller
         IERC721(listing.nftAddress).safeTransferFrom(address(this), listing.seller, listing.tokenId);
@@ -160,9 +153,12 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
     function makePayment(uint256 tokenId) external payable {
+
         Listing storage listing = listings[tokenId];
+
         // Calculate the transaction fee 5%
         uint256 fee = msg.value * transactionFee;
+        // calc installment plus marketplace fee of .05%
         uint256 totalInstallment = listing.installmentPrice + fee;
 
         // increase deadline of 14 days until next installment
@@ -206,7 +202,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
             revert InsufficientInstallmentAmountPlusFee();
         }
 
-        if (
+        else if (
             listing.state == State.NotForSale
         ) {
             revert NotForSale();
@@ -264,26 +260,30 @@ contract LatterBase is ILatterBase, IERC721Receiver{
             );
     }
 
+        emit ListingInstallmentPaid(
+                false,
+                listing.installmentNumber,
+                listing.tokenId,
+                listing.nftAddress,
+                listing.seller,
+                listing.buyer,
+                listing.listingPrice,
+                listing.installmentPrice,
+                timeLeft,
+                State.NotForSale
+            );
+
         // transfers part of the value (calculated fee) that was sent to the marketplace
         payable(address(this)).transfer(fee);
         // transfers part of the value (calculated installmentPrice) that was sent to the seller
         payable(listing.seller).transfer(listing.installmentPrice);
+    }
 
-        emit ListingInstallmentPaid(
-            false,
-            listing.installmentNumber,
-            listing.tokenId,
-            listing.nftAddress,
-            listing.seller,
-            listing.buyer,
-            listing.listingPrice,
-            listing.installmentPrice,
-            timeLeft,
-            State.NotForSale
-        );
-        }
+    function getListingCount() public view returns (uint256 listingCount) {
+         return listingCounter.current();
+    }
 
-      function getListingInfo(uint tokenId) public view returns (Listing memory){
+    function getListingInfo(uint tokenId) public view returns (Listing memory){
           return listings[tokenId];
     }
 
@@ -314,13 +314,8 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         return installmentPrice;
     }
 
-    // Function to remove/reset an address from approval
-    function removeApproval(uint256 tokenId) internal {
-        Listing storage listing = listings[tokenId];
-        IERC721(listing.nftAddress).approve(address(0), tokenId);
-    }
 
-     /// RECEIVE FUNCTION ///
+    /// RECEIVE NFT FUNCTION ///
 
     function onERC721Received(
         address operator,
