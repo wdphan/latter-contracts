@@ -320,18 +320,6 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         IERC721(listing.nftAddress).approve(address(0), tokenId);
     }
 
-    // Function to revert the NFT back to the original owner if a payment is missed
-    // removes approval
-    // function revertNFT(uint256 tokenId) internal  {
-    //     Listing storage listing = listings[tokenId];
-    //     // send NFT back to the original owner
-    //     IERC721(listing.nftAddress).safeTransferFrom(
-    //             address(this),
-    //             listing.seller,
-    //             listing.tokenId
-    //     );
-    // }
-
      /// RECEIVE FUNCTION ///
 
     function onERC721Received(
