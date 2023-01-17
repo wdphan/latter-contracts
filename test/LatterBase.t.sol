@@ -103,7 +103,7 @@ contract LatterTest is Test {
         assertEq(nft.balanceOf(address(latter)), 0);
     }
 
-    // NOT WORKING! FUNDS ARE ALSO NOT BEING TRANSFERED
+    // NOT WORKING! TIME NOT WORKING, TRANSFERS ARE WORKING!
     function testMakePaymentNotInTime() public {
         // bob mint token
         vm.prank(bob);
