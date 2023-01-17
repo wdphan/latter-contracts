@@ -253,7 +253,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         );
         }
 
-    function getListingInfo(uint tokenId) public view returns (Listing memory){
+      function getListingInfo(uint tokenId) public view returns (Listing memory){
           return listings[tokenId];
     }
 

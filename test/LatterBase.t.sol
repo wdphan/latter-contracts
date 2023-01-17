@@ -92,18 +92,18 @@ contract LatterTest is Test {
         // bill makes payment
         vm.startPrank(bill);
         latter.makePayment{value: 1 ether}(1);
-        skip(12800);
+        vm.warp(12800);
         latter.makePayment{value: 1 ether}(1);
-        skip(12800);
+        vm.warp(12800);
         latter.makePayment{value: 1 ether}(1);
-        skip(12800);
+        vm.warp(12800);
         latter.makePayment{value: 1 ether}(1);
         
         // assert contract has transferred NFT to buyer
         assertEq(nft.balanceOf(address(latter)), 0);
     }
 
-    // NOT WORKING!
+    // NOT WORKING! FUNDS ARE ALSO NOT BEING TRANSFERED
     function testMakePaymentNotInTime() public {
         // bob mint token
         vm.prank(bob);
@@ -120,7 +120,8 @@ contract LatterTest is Test {
         // bill makes payment
         vm.startPrank(bill);
         latter.makePayment{value: 1 ether}(1);
-        skip(32000);
+        vm.warp(32000);
+        
         // vm.expectRevert();
         latter.makePayment{value: 1 ether}(1);
     }
