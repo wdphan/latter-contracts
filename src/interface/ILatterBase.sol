@@ -74,6 +74,17 @@ interface ILatterBase {
         State state
     );
 
+    event ListingExpired(
+        bool isExpired,
+        uint256 installmentNumber,
+        uint256 indexed tokenId,
+        address indexed nftAddress,
+        address payable seller,
+        address payable buyer,
+        uint256 time,
+        State state
+    );
+
     // price is below zero
     error PriceBelowZero();
     

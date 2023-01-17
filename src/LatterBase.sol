@@ -166,23 +166,44 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         uint256 totalInstallment = listing.installmentPrice + fee;
 
         // increase deadline of 14 days until next installment
-        timer.setDeadline(uint64(block.timestamp + 2 weeks));
+        uint deadline = block.timestamp + 2 weeks;
 
         // for struct
-        uint256 timeLeft = timer.getDeadline() - block.timestamp;
+        uint256 timeLeft = deadline - block.timestamp;
+        // set the timeleft in the struct
+        listing.timeLeft = timeLeft;
+
+        //// REVERTS ////
+
+        // checks if payment is past deadline
+        // if so, send NFT back to seller
+        if (block.timestamp > listing.timeLeft) {
+            // send original owner NFT back
+            IERC721(listing.nftAddress).safeTransferFrom(
+                address(this),
+                listing.seller,
+                listing.tokenId
+            );
+            // send the value received back to msg.sender
+            payable(msg.sender).transfer(msg.value);
+            // emit listing expired
+            emit ListingExpired(
+                true,
+                listing.installmentNumber,
+                listing.tokenId,
+                listing.nftAddress,
+                listing.seller,
+                listing.buyer,
+                timeLeft,
+                State.NotForSale
+            );
+        }
 
         // Check that the correct payment amount is received
         // if less, then revert
         // installmentPrice + the transaction fee
         if (msg.value < totalInstallment) {
             revert InsufficientInstallmentAmountPlusFee();
-        }
-
-        // DEADLINE NOT WORKING!
-        // checks if payment is past deadline
-        if (listing.installmentNumber > 1 && block.timestamp > timer.getDeadline())
-        {
-            revertNFT(listing.tokenId);
         }
 
         if (
@@ -196,11 +217,25 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         else if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
             revert NotCurrentBuyer();
         }
+
+        // check if initial buyer is msg.sender
+        // check if installment number is between not less than 1 and not greater than 4
+        else if (listing.installmentNumber > 4){
+            revert AlreadyPaidOff();
+        }
+
+        ////  NON-REVERTS ////
+
         // set the buyer for first installment
-        else if (listing.installmentNumber >= 0) {
+        else if (listing.installmentNumber == 0) {
             listing.buyer = payable(msg.sender);
             // set payment active
             listing.state = State.PaymentActive;
+            // Increment the number of installment payments made
+            listing.installmentNumber++;
+        }
+        // if between 1 and 4 installments
+        else if(listing.installmentNumber > 1 || listing.installmentNumber < 4) {
             // Increment the number of installment payments made
             listing.installmentNumber++;
         }
@@ -228,11 +263,6 @@ contract LatterBase is ILatterBase, IERC721Receiver{
                 State.NotForSale
             );
     }
-        // check if initial buyer is msg.sender
-        // check if installment number is between not less than 1 and not greater than 4
-        if (listing.installmentNumber > 4){
-            revert AlreadyPaidOff();
-        }
 
         // transfers part of the value (calculated fee) that was sent to the marketplace
         payable(address(this)).transfer(fee);
@@ -292,19 +322,15 @@ contract LatterBase is ILatterBase, IERC721Receiver{
 
     // Function to revert the NFT back to the original owner if a payment is missed
     // removes approval
-    function revertNFT(uint256 tokenId) internal  {
-        Listing storage listing = listings[tokenId];
-        // Check that a payment is overdue by seeing if current time is greater than time limit
-        if (block.timestamp > timer.getDeadline()) {
-            revert InstallmentOverdue();
-        }
-        // send NFT back to the original owner
-        IERC721(listing.nftAddress).safeTransferFrom(
-                address(this),
-                listing.seller,
-                listing.tokenId
-        );
-    }
+    // function revertNFT(uint256 tokenId) internal  {
+    //     Listing storage listing = listings[tokenId];
+    //     // send NFT back to the original owner
+    //     IERC721(listing.nftAddress).safeTransferFrom(
+    //             address(this),
+    //             listing.seller,
+    //             listing.tokenId
+    //     );
+    // }
 
      /// RECEIVE FUNCTION ///
 
