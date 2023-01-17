@@ -80,6 +80,9 @@ interface ILatterBase {
     // user is not approved for the marketplace
     error UserNotApproved();
 
+    // not current buyer
+    error NotCurrentBuyer();
+
     // token already listed
     error TokenAlreadyListed();
 
@@ -92,11 +95,14 @@ interface ILatterBase {
     // not for sale
     error NotForSale();
 
+    // paid off
+    error AlreadyPaidOff();
+
     // not NFT owner
     error NotNFTOwner();
 
     // incorrect installment amount
-    error IncorrectInstallmentAmountPlusFee();
+    error InsufficientInstallmentAmountPlusFee();
 
     // installment overdue - passed 2 week due date
     error InstallmentOverdue();

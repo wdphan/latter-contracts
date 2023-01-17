@@ -9,10 +9,7 @@ import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 
 
 // List and Sell NFTs 
-// include marketplace fee
-// include installment amount
-// include payment amount
-// include time component and expiry
+// work on payments
 
 /// @title Latter Base
 /// @author William Phan
@@ -44,7 +41,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     uint256 public installmentTimeLimit;
 
     // The marketplace transaction fee (0.5%)
-    uint256 public transactionFee = uint256(0.005 * 10**18);
+    uint256 public transactionFee = msg.value * 5 / 100;
 
     mapping(uint256 => Listing) private listings;
 
@@ -55,6 +52,10 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     constructor(address _marketplaceOwner) {
         marketplaceOwner = _marketplaceOwner;
     }
+
+    // Fallback function is called when msg.data is not empty
+    // done so contract can receive ether
+    fallback() external payable {}
 
      // Function to list an NFT for sale
     function listItem(
@@ -158,27 +159,51 @@ contract LatterBase is ILatterBase, IERC721Receiver{
 
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
-    function makePayment(uint256 tokenId) public payable {
+    function makePayment(uint256 tokenId) external payable {
         Listing storage listing = listings[tokenId];
+        // Calculate the transaction fee 5%
+        uint256 fee = msg.value * transactionFee;
+        uint256 totalInstallment = listing.installmentPrice + fee;
+
+        // increase deadline of 14 days until next installment
+        timer.setDeadline(uint64(block.timestamp + 2 weeks));
+
+        // for struct
+        uint256 timeLeft = timer.getDeadline() - block.timestamp;
+
+        // Check that the correct payment amount is received
+        // if less, then revert
+        // installmentPrice + the transaction fee
+        if (msg.value < totalInstallment) {
+            revert InsufficientInstallmentAmountPlusFee();
+        }
+
+        // DEADLINE NOT WORKING!
+        // checks if payment is past deadline
+        if (listing.installmentNumber > 1 && block.timestamp > timer.getDeadline())
+        {
+            revertNFT(listing.tokenId);
+        }
+
+        if (
+            listing.state == State.NotForSale
+        ) {
+            revert NotForSale();
+        }
         // checks if installment number is greater than 1 to see
         // if there was not an existing buyer
         // otherwise revert
-        if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
-            revert UserNotApproved();
+        else if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
+            revert NotCurrentBuyer();
         }
-
         // set the buyer for first installment
-        if (listing.installmentNumber == 0) {
+        else if (listing.installmentNumber >= 0) {
             listing.buyer = payable(msg.sender);
+            // set payment active
+            listing.state = State.PaymentActive;
+            // Increment the number of installment payments made
+            listing.installmentNumber++;
         }
-        
-        // **check this**
-        // check if initial buyer is msg.sender
-        // check if installment number is between not less than 1 and not greater than 4
-        if (listing.buyer != msg.sender || listing.installmentNumber < 1 && listing.installmentNumber > 4){
-            revert UserNotApproved();
-        }
-
         // Check if all 4 installment payments have been made
         // if so, transfer the NFT
         if (listing.installmentNumber == 4) {
@@ -186,32 +211,28 @@ contract LatterBase is ILatterBase, IERC721Receiver{
             listing.state = State.NotForSale;
             // Transfer ownership of the NFT from the seller to the msg.sender
             IERC721(listing.nftAddress).safeTransferFrom(
-                listing.seller,
+                address(this),
                 msg.sender,
                 listing.tokenId
         );
-
-        // Increment the number of installment payments made
-        listing.installmentNumber++;
-
-        // Calculate the transaction fee
-        uint256 fee = listing.installmentPrice * transactionFee;
-
-        // Check that the correct payment amount is received
-        // if less, then revert
-        // installmentPrice + the transaction fee
-        if (msg.value < listing.installmentPrice + fee) {
-            revert IncorrectInstallmentAmountPlusFee();
+            emit PaidOff(
+                true,
+                listing.installmentNumber,
+                listing.tokenId,
+                listing.nftAddress,
+                listing.seller,
+                listing.buyer,
+                listing.listingPrice,
+                listing.installmentPrice,
+                timeLeft,
+                State.NotForSale
+            );
+    }
+        // check if initial buyer is msg.sender
+        // check if installment number is between not less than 1 and not greater than 4
+        if (listing.installmentNumber > 4){
+            revert AlreadyPaidOff();
         }
-
-        // set payment active
-        listing.state = State.PaymentActive;
-
-        // increase deadline of 14 days until next installment
-        timer.setDeadline(uint64(block.timestamp + 14 days));
-
-        uint256 deadline = timer.getDeadline();
-        uint256 timeLeft = deadline - block.timestamp;
 
         // transfers part of the value (calculated fee) that was sent to the marketplace
         payable(address(this)).transfer(fee);
@@ -230,31 +251,9 @@ contract LatterBase is ILatterBase, IERC721Receiver{
             timeLeft,
             State.NotForSale
         );
-
-            emit PaidOff(
-                true,
-                listing.installmentNumber,
-                listing.tokenId,
-                listing.nftAddress,
-                listing.seller,
-                listing.buyer,
-                listing.listingPrice,
-                listing.installmentPrice,
-                timeLeft,
-                State.NotForSale
-            );
         }
-        // if the listing is expired and the current installment paid is less than 4,
-        // revert and remove operator
-        if (
-            listing.isExpired == true &&
-            listing.installmentNumber <= 4 || listing.isExpired == true
-        ) {
-            revertNFT(listing.tokenId);
-        }
-    }
 
-      function getListingInfo(uint tokenId) public view returns (Listing memory){
+    function getListingInfo(uint tokenId) public view returns (Listing memory){
           return listings[tokenId];
     }
 
@@ -293,17 +292,18 @@ contract LatterBase is ILatterBase, IERC721Receiver{
 
     // Function to revert the NFT back to the original owner if a payment is missed
     // removes approval
-    function revertNFT(uint256 tokenId) internal view {
+    function revertNFT(uint256 tokenId) internal  {
         Listing storage listing = listings[tokenId];
         // Check that a payment is overdue by seeing if current time is greater than time limit
-        if (block.timestamp > installmentTimeLimit) {
+        if (block.timestamp > timer.getDeadline()) {
             revert InstallmentOverdue();
         }
-        // operator is set to false
-        IERC721(listing.nftAddress).isApprovedForAll(
-            listing.seller,
-            msg.sender
-        ) == false;
+        // send NFT back to the original owner
+        IERC721(listing.nftAddress).safeTransferFrom(
+                address(this),
+                listing.seller,
+                listing.tokenId
+        );
     }
 
      /// RECEIVE FUNCTION ///

@@ -76,7 +76,7 @@ contract LatterTest is Test {
         latter.deleteListing(1);
     }
 
-   function testMakePayment() public {
+   function testMakeFullPayment() public {
         // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
@@ -90,7 +90,38 @@ contract LatterTest is Test {
         latter.listItem(address(nft), 1, 100);
 
         // bill makes payment
-        vm.prank(bill);
+        vm.startPrank(bill);
+        latter.makePayment{value: 1 ether}(1);
+        skip(12800);
+        latter.makePayment{value: 1 ether}(1);
+        skip(12800);
+        latter.makePayment{value: 1 ether}(1);
+        skip(12800);
+        latter.makePayment{value: 1 ether}(1);
+        
+        // assert contract has transferred NFT to buyer
+        assertEq(nft.balanceOf(address(latter)), 0);
+    }
+
+    // NOT WORKING!
+    function testMakePaymentNotInTime() public {
+        // bob mint token
+        vm.prank(bob);
+        nft.safeMint(bob, 1);
+
+        // bob approves latter contract
+        vm.prank(bob);
+        nft.approve(address(latter), 1);
+
+        // bob approves and executes contract
+        vm.prank(bob);
+        latter.listItem(address(nft), 1, 100);
+
+        // bill makes payment
+        vm.startPrank(bill);
+        latter.makePayment{value: 1 ether}(1);
+        skip(32000);
+        // vm.expectRevert();
         latter.makePayment{value: 1 ether}(1);
     }
 
