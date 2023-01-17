@@ -7,10 +7,6 @@ import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 import "src/interface/ILatterBase.sol";
 import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 
-
-// List and Sell NFTs 
-// work on payments
-
 /// @title Latter Base
 /// @author William Phan
 /// @notice Pay-in-four model. 4 payments made every 2 weeks for an NFT
@@ -279,6 +275,8 @@ contract LatterBase is ILatterBase, IERC721Receiver{
         payable(listing.seller).transfer(listing.installmentPrice);
     }
 
+    //// VIEW FUNCTIONS ////
+
     function getListingCount() public view returns (uint256 listingCount) {
          return listingCounter.current();
     }
@@ -315,7 +313,7 @@ contract LatterBase is ILatterBase, IERC721Receiver{
     }
 
 
-    /// RECEIVE NFT FUNCTION ///
+    //// RECEIVE NFT FUNCTION ////
 
     function onERC721Received(
         address operator,
