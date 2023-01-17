@@ -5,12 +5,7 @@ import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Counters.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 import "src/interface/ILatterMonth.sol";
-
-// List and Sell NFTs 
-// include marketplace fee
-// include installment amount
-// include payment amount
-// include time component and expiry
+import "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @title Latter Month
 /// @author William Phan
@@ -19,7 +14,7 @@ import "src/interface/ILatterMonth.sol";
 /// @custom:experimental This is an experimental contract.
 
 // Set the contract to be owned
-contract LatterMonth is ILatterMonth{
+contract LatterMonth is ILatterMonth, IERC721Receiver{
     using Timers for Timers.Timestamp;
     using Counters for Counters.Counter;
 
@@ -27,7 +22,7 @@ contract LatterMonth is ILatterMonth{
     Timers.Timestamp public timer;
 
     // counts the number of listings - also the listingId, starts from 1
-    Counters.Counter private listingCounter;
+    Counters.Counter public listingCounter;
 
     // counts the number of sold listings
     Counters.Counter private listingSoldCounter;
@@ -35,105 +30,102 @@ contract LatterMonth is ILatterMonth{
     // The ERC721 token contract
     IERC721 public nftContract;
 
-    // The address of the original owner of the NFT
-    address public originalOwner;
-
     // The address of the marketplace contract owner
     address public marketplaceOwner;
 
-    // The due date for each payment
-    uint256 public installmentTimeLimit;
-
     // The marketplace transaction fee (0.5%)
-    uint256 public transactionFee = uint256(0.005 * 10**18);
+    uint256 public transactionFee = msg.value * 5 / 100;
 
     mapping(uint256 => Listing) private listings;
-
-    // checks if address is valid
-    mapping(uint256 => address) public approved;
 
     // The constructor with settings
     constructor(address _marketplaceOwner) {
         marketplaceOwner = _marketplaceOwner;
     }
 
-    // Function to list an NFT for sale
+    // Fallback function is called when msg.data is not empty
+    // done so contract can receive ether
+    fallback() external payable {}
+
+     // Function to list an NFT for sale
     function listItem(
         address nftAddress,
         uint256 tokenId,
         uint256 listingPrice
     ) external {
+
+        IERC721 nft = IERC721(nftAddress);
+
+        // increment listing counter
+        listingCounter.increment();
+
+        // current incremented token listing
+        Listing storage listing = listings[tokenId];
+
         // price to list cannot be negaive
         if (listingPrice <= 0) {
             revert PriceBelowZero();
         }
 
-        IERC721 nft = IERC721(nftAddress);
-
-        // if the marketplace not approved, then revert
-        if (IERC721(nftAddress).getApproved(tokenId) != address(this)) {
-            // put this on another doc
-            revert UserNotApproved();
-        }
-         // grab token listing
-        Listing storage listing = listings[tokenId];
         // check if token isn't already listed
         if (listing.state != State.ForSale) {
             revert TokenAlreadyListed();
         }
-        
-        // increment listing counter
-        listingCounter.increment();
-
-        // current installment counter = 0
-        uint256 installmentCounter = 0;
-        uint256 installmentPrice = 0;
-        uint8 numberOfMonths = 0;
 
         // inputs for new listing
         Listing memory newListing = Listing(
             false,
-            numberOfMonths,
-            installmentCounter,
+            0,
             tokenId,
             nftAddress,
             payable(msg.sender),
             payable(address(0)),
-            listingPrice,
-            installmentPrice,
+            0,
+            0,
             block.timestamp,
             // changes the state to for sale
             State.ForSale
         );
 
-        // emit event
+        // set new listing
+        listings[tokenId] = newListing;
+
+          // emit event
         emit ListingCreated(
             false,
-            installmentCounter,
+            0,
             tokenId,
             nftAddress,
             payable(msg.sender),
             payable(address(0)),
-            listingPrice,
+            0,
+            0,
             block.timestamp,
             State.ForSale
         );
+        
+        // transfers NFT from caller to contract address
+        nft.safeTransferFrom(msg.sender, address(this), tokenId);
     }
+
+    /// DELETE LISTING ///
 
     function deleteListing(uint256 tokenId) external {
 
-          // grab token listing
+        // grab token listing
         Listing storage listing = listings[tokenId];
 
-          // check if the caller is the owner of the listing
-        if (msg.sender != listings[tokenId].seller) {
+        // check if the caller is the owner of the listing
+        if (msg.sender != listing.seller) {
             revert UserNotApproved();
         }
 
-        // remove the listing
+        // transfer the NFT back to the seller
+        IERC721(listing.nftAddress).safeTransferFrom(address(this), listing.seller, listing.tokenId);
+
+        // otherwise, remove the listing
         delete listings[tokenId];
 
-        // Decrement the NFT listing counter
         listingCounter.decrement();
 
         // emit listing has been removed by reseting to default values and zero address
@@ -145,96 +137,113 @@ contract LatterMonth is ILatterMonth{
             block.timestamp,
             State.NotForSale
         );
-    }
+   }
 
     // installment + marketplace fee of .05%
     // make sure first payer will stay the first payer until after late time
-    function makePayment(uint256 tokenId, uint8 numberOfMonths) public payable {
+    function makePayment(uint256 tokenId, uint8 numberOfMonths) external payable {
+
         Listing storage listing = listings[tokenId];
 
+        // Calculate the transaction fee 5%
+        uint256 fee = msg.value * transactionFee;
+
+        listing.installmentPrice = listing.listingPrice / numberOfMonths;
+
+        // calculate installment plus marketplace fee of .05%
+        uint256 totalInstallment = listing.installmentPrice + fee;
+
+        // increase deadline of 14 days until next installment
+        uint deadline = block.timestamp + 4 weeks;
+        // for struct
+        uint256 timeLeft = deadline - block.timestamp;
+        // set the timeleft in the struct
+        listing.timeLeft = timeLeft;
+
+        //// REVERTS ////
+
+        // just use the base plan
         if (numberOfMonths < 3) {
             revert SwitchPlans();
+        }
+
+        // checks if payment is past deadline
+        // if so, send NFT back to seller
+        if (block.timestamp > listing.timeLeft) {
+            // send original owner NFT back
+            IERC721(listing.nftAddress).safeTransferFrom(
+                address(this),
+                listing.seller,
+                listing.tokenId
+            );
+            // send the value received back to msg.sender
+            payable(msg.sender).transfer(msg.value);
+            // emit listing expired
+            emit ListingExpired(
+                true,
+                listing.installmentNumber,
+                listing.tokenId,
+                listing.nftAddress,
+                listing.seller,
+                listing.buyer,
+                timeLeft,
+                State.NotForSale
+            );
+        }
+
+        // Check that the correct payment amount is received
+        // if less, then revert
+        // installmentPrice + the transaction fee
+        if (msg.value < totalInstallment) {
+            revert InsufficientInstallmentAmountPlusFee();
+        }
+
+        else if (
+            listing.state == State.NotForSale
+        ) {
+            revert NotForSale();
         }
         // checks if installment number is greater than 1 to see
         // if there was not an existing buyer
         // otherwise revert
-        if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
-            revert UserNotApproved();
-        }
-
-        // set the buyer for first installment
-        if (listing.installmentNumber == 0) {
-            listing.buyer = payable(msg.sender);
+        else if (listing.installmentNumber > 1 && msg.sender != listing.buyer) {
+            revert NotCurrentBuyer();
         }
 
         // check if initial buyer is msg.sender
-        // check if installment number is between not less than 1 month and
-        // greater than the number of months set by buyer
-        if (listing.installmentNumber < 1 && listing.installmentNumber > numberOfMonths){
-            revert UserNotApproved();
+        // check if installment number is between not less than 1 and not greater than 4
+        else if (listing.installmentNumber > 4){
+            revert AlreadyPaidOff();
         }
 
-        // Check if all installment payments have been made
+        ////  NON-REVERTS ////
+
+        // set the buyer for first installment
+        else if (listing.installmentNumber == 0) {
+            listing.buyer = payable(msg.sender);
+            // set payment active
+            listing.state = State.PaymentActive;
+            // Increment the number of installment payments made
+            listing.installmentNumber++;
+        }
+        // if between 1 and 4 installments
+        else if(listing.installmentNumber > 1 || listing.installmentNumber < 4) {
+            // Increment the number of installment payments made
+            listing.installmentNumber++;
+        }
+        // Check if all 4 installment payments have been made
         // if so, transfer the NFT
-        if (listing.installmentNumber == numberOfMonths) {
+        if (listing.installmentNumber == 4) {
             // change the listing state to NotForSale
             listing.state = State.NotForSale;
             // Transfer ownership of the NFT from the seller to the msg.sender
             IERC721(listing.nftAddress).safeTransferFrom(
-                listing.seller,
+                address(this),
                 msg.sender,
                 listing.tokenId
         );
-
-        listing.numberOfMonths = numberOfMonths;
-
-        // Increment the number of installment payments made
-        listing.installmentNumber++;
-
-        // set the installment amount
-        uint installmentAmount = listing.listingPrice / numberOfMonths;
-
-        // Calculate the transaction fee
-        uint256 fee = installmentAmount * transactionFee;
-
-        // Check that the correct payment amount is received
-        // installmentPrice + the transaction fee
-        // if less, then revert
-        if (msg.value < listing.installmentPrice + fee) {
-            revert IncorrectInstallmentAmountPlusFee();
-        }
-
-        // set payment active
-        listing.state = State.PaymentActive;
-
-        // increase deadline of 30 days until next installment
-        timer.setDeadline(uint64(block.timestamp + 30 days));
-
-        uint256 deadline = timer.getDeadline();
-        uint256 timeLeft = deadline - block.timestamp;
-
-        // transfers part of the value (calculated fee) that was sent to the marketplace
-        payable(address(this)).transfer(fee);
-        // transfers part of the value (calculated installmentPrice) that was sent to the seller
-        payable(listing.seller).transfer(listing.installmentPrice);
-
-        emit ListingInstallmentPaid(
-            false,
-            listing.numberOfMonths,
-            listing.installmentNumber,
-            listing.tokenId,
-            listing.nftAddress,
-            listing.seller,
-            listing.buyer,
-            listing.listingPrice,
-            listing.installmentPrice,
-            timeLeft,
-            State.NotForSale
-        );
-
             emit PaidOff(
                 true,
-                listing.numberOfMonths,
                 listing.installmentNumber,
                 listing.tokenId,
                 listing.nftAddress,
@@ -245,18 +254,38 @@ contract LatterMonth is ILatterMonth{
                 timeLeft,
                 State.NotForSale
             );
-        }
-        // if the listing is expired and the current installment paid is less than 4,
-        // revert and remove operator
-        if (
-            listing.isExpired == true &&
-            listing.installmentNumber <= 4 || listing.isExpired == true
-        ) {
-            revertNFT(listing.tokenId);
-        }
     }
 
-        // function to get the total installment amount due
+        emit ListingInstallmentPaid(
+                false,
+                listing.installmentNumber,
+                listing.tokenId,
+                listing.nftAddress,
+                listing.seller,
+                listing.buyer,
+                listing.listingPrice,
+                listing.installmentPrice,
+                timeLeft,
+                State.NotForSale
+            );
+
+        // transfers part of the value (calculated fee) that was sent to the marketplace
+        payable(address(this)).transfer(fee);
+        // transfers part of the value (calculated installmentPrice) that was sent to the seller
+        payable(listing.seller).transfer(listing.installmentPrice);
+    }
+
+    //// VIEW FUNCTIONS ////
+
+    function getListingCount() public view returns (uint256 listingCount) {
+         return listingCounter.current();
+    }
+
+    function getListingInfo(uint tokenId) public view returns (Listing memory){
+          return listings[tokenId];
+    }
+
+    // function to get the total installment amount due
     // installment + the transaction fee
     function getInstallmentAmountPlusFee(uint256 tokenId)
         public
@@ -283,24 +312,15 @@ contract LatterMonth is ILatterMonth{
         return installmentPrice;
     }
 
-    // Function to remove/reset an address from approval
-    function removeApproval(uint256 tokenId) internal {
-        Listing storage listing = listings[tokenId];
-        IERC721(listing.nftAddress).approve(address(0), tokenId);
-    }
 
-    // Function to revert the NFT back to the original owner if a payment is missed
-    // removes approval
-    function revertNFT(uint256 tokenId) internal view {
-        Listing storage listing = listings[tokenId];
-        // Check that a payment is overdue by seeing if current time is greater than time limit
-        if (block.timestamp > installmentTimeLimit) {
-            revert InstallmentOverdue();
-        }
-        // operator is set to false
-        IERC721(listing.nftAddress).isApprovedForAll(
-            listing.seller,
-            msg.sender
-        ) == false;
+    //// RECEIVE NFT FUNCTION ////
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+      return this.onERC721Received.selector;
     }
 }

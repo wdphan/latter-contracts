@@ -11,7 +11,6 @@ interface ILatterMonth {
 
     struct Listing {
             bool isExpired;
-            uint8 numberOfMonths;
             uint256 installmentNumber;
             uint256 tokenId;
             address nftAddress;
@@ -32,6 +31,7 @@ interface ILatterMonth {
         address payable seller,
         address payable buyer,
         uint256 listingPrice,
+        uint256 installmentPrice,
         // time left until next installment due
         uint256 timeLeft,
         State state
@@ -39,7 +39,6 @@ interface ILatterMonth {
 
      event ListingInstallmentPaid(
         bool isExpired,
-        uint8 numberOfMonths,
         uint256 installmentNumber,
         uint256 indexed tokenId,
         address indexed nftAddress,
@@ -54,7 +53,6 @@ interface ILatterMonth {
 
     event PaidOff(
         bool isExpired,
-        uint8 numberOfMonths,
         uint256 installmentNumber,
         uint256 indexed tokenId,
         address indexed nftAddress,
@@ -76,17 +74,31 @@ interface ILatterMonth {
         State state
     );
 
+    event ListingExpired(
+        bool isExpired,
+        uint256 installmentNumber,
+        uint256 indexed tokenId,
+        address indexed nftAddress,
+        address payable seller,
+        address payable buyer,
+        uint256 time,
+        State state
+    );
+
     // price is below zero
     error PriceBelowZero();
     
     // user is not approved for the marketplace
     error UserNotApproved();
 
-    // wrong plan
-    error SwitchPlans();
+    // not current buyer
+    error NotCurrentBuyer();
 
     // token already listed
     error TokenAlreadyListed();
+
+    // switch plans
+    error SwitchPlans();
 
     // caller not valid
     error NotOperator();
@@ -94,27 +106,24 @@ interface ILatterMonth {
     // not for sale
     error NotForSale();
 
+    // paid off
+    error AlreadyPaidOff();
+
     // not NFT owner
     error NotNFTOwner();
 
     // incorrect installment amount
-    error IncorrectInstallmentAmountPlusFee();
+    error InsufficientInstallmentAmountPlusFee();
 
     // installment overdue - passed 2 week due date
     error InstallmentOverdue();
 
-    // The address of the original owner of the NFT
-    function originalOwner() external returns (address);
-
     // The address of the marketplace contract owner
     function marketplaceOwner() external returns (address);
 
-    // The due date for each payment
-    function installmentTimeLimit() external returns (uint);
-
     // The marketplace transaction fee (0.5%)
     function transactionFee() external returns (uint);
-    
+
     // Function to list an NFT for sale
     function listItem(
         address nftAddress,

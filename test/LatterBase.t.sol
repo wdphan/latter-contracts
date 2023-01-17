@@ -6,11 +6,11 @@ import {LatterBase} from "src/LatterBase.sol";
 import {ILatterBase} from "src/interface/ILatterBase.sol";
 import {MyNFT} from "src/MyNFT.sol";
 
-contract LatterTest is Test {
+contract LatterBaseTest is Test {
     
     LatterBase public latter;
     MyNFT public nft;
-    LatterTest public test;
+    LatterBaseTest public test;
 
     address bob = vm.addr(111);
     address bill = vm.addr(222);
@@ -145,7 +145,7 @@ contract LatterTest is Test {
         latter.deleteListing(1);
     }
 
-   function testMakeFullPayment() public {
+   function testFullPayment() public {
         // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
@@ -173,7 +173,7 @@ contract LatterTest is Test {
     }
 
 
-    function testMakePaymentNotInTime() public {
+    function testPaymentNotInTime() public {
         // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
@@ -199,7 +199,7 @@ contract LatterTest is Test {
         assertEq(address(bill).balance, 99000000000000000000);
     }
     
-    function testFailMakePaymentWithInsufficientAmount() public {
+    function testFailPaymentWithInsufficientAmount() public {
         // bob mint token
         vm.prank(bob);
         nft.safeMint(bob, 1);
